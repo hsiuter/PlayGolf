@@ -268,6 +268,7 @@ textarea {
   border-radius: 8px;
   background: #fff;
   padding: 10px;
+  min-width: 0;
 }
 
 .result-head,
@@ -276,10 +277,36 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  min-width: 0;
 }
 
 .result-head strong,
 .history-head strong {
+  overflow-wrap: anywhere;
+}
+
+.history-head .danger {
+  flex: 0 0 auto;
+}
+
+.history-results {
+  display: grid;
+  gap: 8px;
+}
+
+.history-result-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid #e3ebe8;
+  padding-top: 8px;
+  min-width: 0;
+}
+
+.history-result-row strong,
+.history-result-row .muted {
+  display: block;
   overflow-wrap: anywhere;
 }
 

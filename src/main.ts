@@ -14,6 +14,7 @@ let draftScores: Record<string, number> = {};
 let draftStrokes: Record<string, number> = {};
 let draftNote = "";
 const SWIPE_STEP_PX = 24;
+const STROKE_SWIPE_STEP_PX = 8;
 
 const root = document.querySelector<HTMLDivElement>("#app");
 if (!root) throw new Error("Missing app root");
@@ -187,8 +188,9 @@ function renderResultCards(players: ReturnType<typeof calculateRound>["players"]
 }
 
 function renderSwipeNumberInput(inputClass: string, playerId: string, value: number): string {
+  const stepPx = inputClass === "stroke-input" ? STROKE_SWIPE_STEP_PX : SWIPE_STEP_PX;
   return `
-    <div class="swipe-number" data-player="${playerId}">
+    <div class="swipe-number" data-player="${playerId}" data-step-px="${stepPx}">
       <button type="button" class="step-button step-minus" data-delta="-1" aria-label="decrease">-</button>
       <input inputmode="numeric" type="number" class="${inputClass} swipe-input" data-player="${playerId}" value="${value}" />
       <button type="button" class="step-button step-plus" data-delta="1" aria-label="increase">+</button>
@@ -251,21 +253,20 @@ function renderRoundRecord(round: RoundRecord): string {
         <button class="danger delete-round" data-id="${round.id}">刪除</button>
       </div>
       <p class="muted">${round.input.playerIds.map((id) => playerName(state.players, id)).join("、")}</p>
-      <div class="table-wrap">
-        <table>
-          <tbody>
-            ${round.result.players
-              .map(
-                (item) => `
-                  <tr>
-                    <td>${playerName(state.players, item.playerId)}</td>
-                    <td class="amount ${amountClass(item.total)}">${formatAmount(item.total)}</td>
-                  </tr>
-                `
-              )
-              .join("")}
-          </tbody>
-        </table>
+      <div class="history-results">
+        ${round.result.players
+          .map(
+            (item) => `
+              <div class="history-result-row">
+                <div>
+                  <strong>${playerName(state.players, item.playerId)}</strong>
+                  <span class="muted">分數 ${round.input.scores[item.playerId] ?? 0} / 桿數 ${round.input.strokes[item.playerId] ?? 0}</span>
+                </div>
+                <span class="amount ${amountClass(item.total)}">${formatAmount(item.total)}</span>
+              </div>
+            `
+          )
+          .join("")}
       </div>
     </article>
   `;
@@ -558,7 +559,8 @@ function bindSwipeNumberInputs(selector: string, target: Record<string, number>)
       if (!dragging) return;
       event.preventDefault();
       const playerId = input.dataset.player ?? "";
-      const steps = Math.trunc((event.clientX - startX) / SWIPE_STEP_PX);
+      const stepPx = Number(control.dataset.stepPx ?? SWIPE_STEP_PX);
+      const steps = Math.trunc((event.clientX - startX) / stepPx);
       const next = startValue + steps;
       if (next === lastValue) return;
       lastValue = next;
