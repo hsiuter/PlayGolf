@@ -1,5 +1,6 @@
 import "./styles.css";
 import { downloadText, playerName, stateToCsv, totalsByPlayer } from "./exporters";
+import { parseTemplateWorkbook } from "./excelImport";
 import { createInitialState } from "./initialData";
 import { calculateRound, getHandicap, setHandicap } from "./scoring";
 import { loadState, saveState } from "./storage";
@@ -16,6 +17,7 @@ let draftNote = "";
 const SWIPE_STEP_PX = 24;
 const STROKE_SWIPE_STEP_PX = 8;
 const HANDICAP_SWIPE_STEP_PX = 16;
+const DEFAULT_STROKE_VALUE = 80;
 
 const root = document.querySelector<HTMLDivElement>("#app");
 if (!root) throw new Error("Missing app root");
@@ -26,11 +28,9 @@ void boot();
 async function boot(): Promise<void> {
   state = await loadState();
   selectedIds = state.players.filter((player) => player.active).slice(0, 4).map((player) => player.id);
-  selectedIds.forEach((id) => {
-    draftScores[id] = 0;
-    draftStrokes[id] = 0;
-  });
+  resetDraftInputs();
   render();
+  preventDoubleTapZoom();
   registerServiceWorker();
 }
 
@@ -351,6 +351,10 @@ function renderSettings(): string {
           <button id="clear-local-data" class="danger">清空本機資料</button>
         </div>
         <label>
+          <span class="label">匯入 Excel 範本</span>
+          <input id="import-excel" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+        </label>
+        <label>
           <span class="label">匯入 JSON 備份</span>
           <input id="import-json" type="file" accept="application/json" />
         </label>
@@ -373,12 +377,14 @@ function bindScoreEvents(): void {
     const count = Number((event.target as HTMLSelectElement).value);
     const activeIds = state.players.filter((player) => player.active).map((player) => player.id);
     selectedIds = activeIds.slice(0, count).map((id, index) => selectedIds[index] ?? id);
+    selectedIds.forEach(ensureDraftInput);
     render();
   });
 
   app.querySelectorAll<HTMLSelectElement>(".player-select").forEach((select) => {
     select.addEventListener("change", () => {
       selectedIds[Number(select.dataset.index)] = select.value;
+      ensureDraftInput(select.value);
       render();
     });
   });
@@ -396,10 +402,7 @@ function bindScoreEvents(): void {
     draftScores = {};
     draftStrokes = {};
     draftNote = "";
-    selectedIds.forEach((id) => {
-      draftScores[id] = 0;
-      draftStrokes[id] = 0;
-    });
+    selectedIds.forEach(ensureDraftInput);
     render();
   });
 
@@ -499,18 +502,30 @@ function bindSettingsEvents(): void {
     render();
   });
 
+  app.querySelector<HTMLInputElement>("#import-excel")?.addEventListener("change", async (event) => {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+
+    try {
+      const imported = await parseTemplateWorkbook(file, state.settings);
+      state = imported;
+      selectedIds = state.players.filter((player) => player.active).slice(0, 4).map((player) => player.id);
+      resetDraftInputs();
+      await persist();
+      downloadText(`play-golf-imported-${today()}.json`, JSON.stringify(state, null, 2), "application/json");
+      view = "score";
+      render();
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Excel 匯入失敗。");
+    }
+  });
+
   app.querySelector<HTMLButtonElement>("#clear-local-data")?.addEventListener("click", async () => {
     const confirmed = window.confirm("確定要清空這台裝置的本機資料？場次紀錄、修改後讓桿與設定都會重設。");
     if (!confirmed) return;
     state = createInitialState();
     selectedIds = state.players.filter((player) => player.active).slice(0, 4).map((player) => player.id);
-    draftScores = {};
-    draftStrokes = {};
-    draftNote = "";
-    selectedIds.forEach((id) => {
-      draftScores[id] = 0;
-      draftStrokes[id] = 0;
-    });
+    resetDraftInputs();
     await persist();
     view = "score";
     render();
@@ -661,6 +676,18 @@ function currentInput(): RoundInput | undefined {
   };
 }
 
+function resetDraftInputs(): void {
+  draftScores = {};
+  draftStrokes = {};
+  draftNote = "";
+  selectedIds.forEach(ensureDraftInput);
+}
+
+function ensureDraftInput(id: string): void {
+  draftScores[id] = draftScores[id] ?? 0;
+  draftStrokes[id] = draftStrokes[id] ?? DEFAULT_STROKE_VALUE;
+}
+
 async function persist(): Promise<void> {
   await saveState(state);
 }
@@ -705,4 +732,18 @@ function registerServiceWorker(): void {
       });
     });
   }
+}
+
+function preventDoubleTapZoom(): void {
+  let lastTouchEnd = 0;
+
+  document.addEventListener(
+    "touchend",
+    (event) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) event.preventDefault();
+      lastTouchEnd = now;
+    },
+    { passive: false }
+  );
 }
