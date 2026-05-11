@@ -15,6 +15,7 @@ let draftStrokes: Record<string, number> = {};
 let draftNote = "";
 const SWIPE_STEP_PX = 24;
 const STROKE_SWIPE_STEP_PX = 8;
+const HANDICAP_SWIPE_STEP_PX = 16;
 
 const root = document.querySelector<HTMLDivElement>("#app");
 if (!root) throw new Error("Missing app root");
@@ -187,12 +188,13 @@ function renderResultCards(players: ReturnType<typeof calculateRound>["players"]
     .join("");
 }
 
-function renderSwipeNumberInput(inputClass: string, playerId: string, value: number): string {
-  const stepPx = inputClass === "stroke-input" ? STROKE_SWIPE_STEP_PX : SWIPE_STEP_PX;
+function renderSwipeNumberInput(inputClass: string, playerId: string, value: number, stepPx?: number, id?: string): string {
+  const resolvedStepPx = stepPx ?? (inputClass === "stroke-input" ? STROKE_SWIPE_STEP_PX : SWIPE_STEP_PX);
+  const idAttr = id ? ` id="${id}"` : "";
   return `
-    <div class="swipe-number" data-player="${playerId}" data-step-px="${stepPx}">
+    <div class="swipe-number" data-player="${playerId}" data-step-px="${resolvedStepPx}">
       <button type="button" class="step-button step-minus" data-delta="-1" aria-label="decrease">-</button>
-      <input inputmode="numeric" type="number" class="${inputClass} swipe-input" data-player="${playerId}" value="${value}" />
+      <input${idAttr} inputmode="numeric" type="number" class="${inputClass} swipe-input" data-player="${playerId}" value="${value}" />
       <button type="button" class="step-button step-plus" data-delta="1" aria-label="increase">+</button>
       <div class="swipe-handle" role="slider" aria-label="swipe to adjust" tabindex="0">左右滑動調整</div>
     </div>
@@ -286,7 +288,7 @@ function renderHandicap(): string {
           ${state.players
             .map(
               (player) => `
-                <label class="row">
+                <label class="player-toggle">
                   <input type="checkbox" class="active-toggle" data-player="${player.id}" ${player.active ? "checked" : ""} />
                   <span>${player.name}</span>
                 </label>
@@ -311,7 +313,7 @@ function renderHandicap(): string {
         </div>
         <label>
           <span class="label">A 對 B 讓桿值</span>
-          <input id="handicap-value" inputmode="numeric" type="number" value="0" />
+          ${renderSwipeNumberInput("handicap-value-input", "handicap", 0, HANDICAP_SWIPE_STEP_PX, "handicap-value")}
         </label>
         <button id="save-handicap">儲存讓桿</button>
         <p class="muted">儲存時會同步更新反向值，例如 A 對 B 為 6，B 對 A 會是 -6。</p>
@@ -440,6 +442,7 @@ function bindHandicapEvents(): void {
   a?.addEventListener("change", syncValue);
   b?.addEventListener("change", syncValue);
   syncValue();
+  bindStandaloneSwipeInput(".handicap-value-input");
 
   app.querySelector<HTMLButtonElement>("#save-handicap")?.addEventListener("click", async () => {
     if (!a || !b || !value || a.value === b.value) return;
@@ -574,6 +577,56 @@ function bindSwipeNumberInputs(selector: string, target: Record<string, number>)
       control.classList.remove("dragging");
       if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
       render();
+    };
+
+    handle.addEventListener("pointerup", endDrag);
+    handle.addEventListener("pointercancel", endDrag);
+  });
+}
+
+function bindStandaloneSwipeInput(selector: string): void {
+  app.querySelectorAll<HTMLInputElement>(selector).forEach((input) => {
+    const control = input.closest<HTMLElement>(".swipe-number");
+    const handle = control?.querySelector<HTMLElement>(".swipe-handle");
+    if (!control || !handle) return;
+
+    control.querySelectorAll<HTMLButtonElement>(".step-button").forEach((button) => {
+      button.addEventListener("click", () => {
+        input.value = String(Number(input.value || 0) + Number(button.dataset.delta ?? 0));
+      });
+    });
+
+    let startX = 0;
+    let startValue = 0;
+    let lastValue = 0;
+    let dragging = false;
+
+    handle.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      startX = event.clientX;
+      startValue = Number(input.value || 0);
+      lastValue = startValue;
+      dragging = true;
+      control.classList.add("dragging");
+      handle.setPointerCapture(event.pointerId);
+    });
+
+    handle.addEventListener("pointermove", (event) => {
+      if (!dragging) return;
+      event.preventDefault();
+      const stepPx = Number(control.dataset.stepPx ?? SWIPE_STEP_PX);
+      const steps = Math.trunc((event.clientX - startX) / stepPx);
+      const next = startValue + steps;
+      if (next === lastValue) return;
+      lastValue = next;
+      input.value = String(next);
+    });
+
+    const endDrag = (event: PointerEvent) => {
+      if (!dragging) return;
+      dragging = false;
+      control.classList.remove("dragging");
+      if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
     };
 
     handle.addEventListener("pointerup", endDrag);

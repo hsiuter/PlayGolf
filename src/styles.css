@@ -161,6 +161,29 @@ textarea {
   min-width: 0;
 }
 
+.player-toggle {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.player-toggle input[type="checkbox"] {
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  padding: 0;
+}
+
+.player-toggle span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
 .label {
   display: block;
   margin-bottom: 4px;
