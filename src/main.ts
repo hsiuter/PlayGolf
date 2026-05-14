@@ -163,23 +163,25 @@ function renderResultCards(players: ReturnType<typeof calculateRound>["players"]
           </div>
           <details>
             <summary>明細</summary>
-            <div class="table-wrap">
-              <table>
-                <tbody>
-                  <tr><th>分數勝負</th><td>${formatAmount(item.scoreAmount)}</td></tr>
-                  <tr><th>讓桿勝負</th><td>${formatAmount(item.handicapAmount)}</td></tr>
-                  ${item.matchups
-                    .map(
-                      (matchup) => `
-                        <tr>
-                          <th>對 ${playerName(state.players, matchup.opponentId)}（讓 ${matchup.handicap}）</th>
-                          <td>${formatAmount(matchup.cappedAmount)}</td>
-                        </tr>
-                      `
-                    )
-                    .join("")}
-                </tbody>
-              </table>
+            <div class="result-details">
+              <div class="result-detail-row">
+                <span>分數勝負</span>
+                <strong class="amount ${amountClass(item.scoreAmount)}">${formatAmount(item.scoreAmount)}</strong>
+              </div>
+              <div class="result-detail-row">
+                <span>讓桿勝負</span>
+                <strong class="amount ${amountClass(item.handicapAmount)}">${formatAmount(item.handicapAmount)}</strong>
+              </div>
+              ${item.matchups
+                .map(
+                  (matchup) => `
+                    <div class="result-detail-row">
+                      <span>對 ${playerName(state.players, matchup.opponentId)}（讓 ${matchup.handicap}）</span>
+                      <strong class="amount ${amountClass(matchup.cappedAmount)}">${formatAmount(matchup.cappedAmount)}</strong>
+                    </div>
+                  `
+                )
+                .join("")}
             </div>
           </details>
         </article>

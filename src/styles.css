@@ -346,6 +346,31 @@ summary {
   font-weight: 700;
 }
 
+.result-details {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.result-detail-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid #e3ebe8;
+  padding-top: 8px;
+  min-width: 0;
+}
+
+.result-detail-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.result-detail-row .amount {
+  white-space: nowrap;
+}
+
 .table-wrap {
   overflow-x: auto;
 }
