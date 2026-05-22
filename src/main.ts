@@ -210,40 +210,23 @@ function renderHistory(): string {
   return `
     <section class="section">
       <h2>累計勝負</h2>
-      <div class="table-wrap panel">
-        <table>
-          <thead><tr><th>姓名</th><th>累計</th></tr></thead>
-          <tbody>
-            ${ordered
-              .map((player) => `<tr><td>${player.name}</td><td class="amount ${amountClass(totals[player.id] ?? 0)}">${formatAmount(totals[player.id] ?? 0)}</td></tr>`)
-              .join("")}
-          </tbody>
-        </table>
+      <div class="history-total-list panel">
+        ${ordered
+          .map(
+            (player) => `
+              <div class="history-total-row">
+                <strong>${player.name}</strong>
+                <span class="amount ${amountClass(totals[player.id] ?? 0)}">${formatAmount(totals[player.id] ?? 0)}</span>
+              </div>
+            `
+          )
+          .join("")}
       </div>
     </section>
     <section class="section">
       <h2>新場次</h2>
       <div class="grid">
         ${state.rounds.length === 0 ? `<p class="muted">尚未儲存新場次。</p>` : [...state.rounds].reverse().map(renderRoundRecord).join("")}
-      </div>
-    </section>
-    <section class="section">
-      <h2>Excel 歷史總表</h2>
-      <div class="grid">
-        ${state.legacyRecords
-          .slice()
-          .reverse()
-          .map(
-            (record) => `
-              <article class="history-item">
-                <div class="history-head">
-                  <strong>${record.label}</strong>
-                  <span class="muted">歷史匯入</span>
-                </div>
-              </article>
-            `
-          )
-          .join("")}
       </div>
     </section>
   `;
