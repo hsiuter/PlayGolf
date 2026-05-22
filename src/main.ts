@@ -449,7 +449,25 @@ function bindHandicapEvents(): void {
     const input = app.querySelector<HTMLInputElement>("#new-player-name");
     const name = input?.value.trim();
     if (!name) return;
+
+    const existing = state.players.find((player) => player.name.trim() === name);
+    if (existing?.active) {
+      window.alert(`已經有啟用中的參賽者「${name}」。`);
+      return;
+    }
+
+    if (existing && !existing.active) {
+      const confirmed = window.confirm(`已有已停用的參賽者「${name}」，是否重新啟用？`);
+      if (!confirmed) return;
+      existing.active = true;
+      normalizeSelectedPlayers();
+      await persist();
+      render();
+      return;
+    }
+
     state.players.push({ id: crypto.randomUUID(), name, active: true });
+    normalizeSelectedPlayers();
     await persist();
     render();
   });
