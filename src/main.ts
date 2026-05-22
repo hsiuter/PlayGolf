@@ -72,14 +72,16 @@ function renderView(): string {
 function renderScore(): string {
   const result = currentInput() ? calculateRound(currentInput()!, state.handicap) : undefined;
   const activePlayers = state.players.filter((player) => player.active);
+  const canCreateRound = activePlayers.length >= 3;
 
   return `
     <section class="section">
       <h2>本場參賽者</h2>
       <div class="panel grid">
+        ${canCreateRound ? "" : `<p class="error">至少需要 3 位啟用中的參賽者才能建立場次。</p>`}
         <label>
           <span class="label">人數</span>
-          <select id="player-count">
+          <select id="player-count" ${canCreateRound ? "" : "disabled"}>
             <option value="3" ${selectedIds.length === 3 ? "selected" : ""}>3 人</option>
             <option value="4" ${selectedIds.length === 4 ? "selected" : ""}>4 人</option>
           </select>
@@ -90,7 +92,7 @@ function renderScore(): string {
               (id, index) => `
                 <label>
                   <span class="label">第 ${index + 1} 位</span>
-                  <select class="player-select" data-index="${index}">
+                  <select class="player-select" data-index="${index}" ${canCreateRound ? "" : "disabled"}>
                     ${activePlayers
                       .map((player) => `<option value="${player.id}" ${player.id === id ? "selected" : ""}>${player.name}</option>`)
                       .join("")}
@@ -273,10 +275,14 @@ function renderHandicap(): string {
           ${state.players
             .map(
               (player) => `
-                <label class="player-toggle">
-                  <input type="checkbox" class="active-toggle" data-player="${player.id}" ${player.active ? "checked" : ""} />
-                  <span>${player.name}</span>
-                </label>
+                <div class="player-toggle-row">
+                  <label class="player-toggle">
+                    <input type="checkbox" class="active-toggle" data-player="${player.id}" ${player.active ? "checked" : ""} />
+                    <span>${player.name}</span>
+                  </label>
+                  <span class="muted">${player.active ? "啟用中" : "已停用"}</span>
+                  ${player.active ? `<button class="danger remove-player" data-player="${player.id}">移除</button>` : ""}
+                </div>
               `
             )
             .join("")}
@@ -452,6 +458,20 @@ function bindHandicapEvents(): void {
     checkbox.addEventListener("change", async () => {
       const player = state.players.find((item) => item.id === checkbox.dataset.player);
       if (player) player.active = checkbox.checked;
+      normalizeSelectedPlayers();
+      await persist();
+      render();
+    });
+  });
+
+  app.querySelectorAll<HTMLButtonElement>(".remove-player").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const player = state.players.find((item) => item.id === button.dataset.player);
+      if (!player) return;
+      const confirmed = window.confirm(`確定要移除 ${player.name}？歷史紀錄會保留，但不再出現在選人與讓桿選單。`);
+      if (!confirmed) return;
+      player.active = false;
+      normalizeSelectedPlayers();
       await persist();
       render();
     });
@@ -659,6 +679,20 @@ function currentInput(): RoundInput | undefined {
     note: draftNote,
     settingsSnapshot: { ...state.settings }
   };
+}
+
+function normalizeSelectedPlayers(): void {
+  const activeIds = state.players.filter((player) => player.active).map((player) => player.id);
+  const targetCount = Math.min(Math.max(selectedIds.length, 3), 4, activeIds.length);
+  const kept = selectedIds.filter((id, index, ids) => activeIds.includes(id) && ids.indexOf(id) === index).slice(0, targetCount);
+
+  for (const id of activeIds) {
+    if (kept.length >= targetCount) break;
+    if (!kept.includes(id)) kept.push(id);
+  }
+
+  selectedIds = kept;
+  selectedIds.forEach(ensureDraftInput);
 }
 
 function resetDraftInputs(): void {

@@ -187,6 +187,19 @@ textarea {
   line-height: 1.25;
 }
 
+.player-toggle-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.player-toggle-row .danger {
+  min-height: 34px;
+  padding: 0 10px;
+}
+
 .label {
   display: block;
   margin-bottom: 4px;
